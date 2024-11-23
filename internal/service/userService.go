@@ -4,21 +4,32 @@ import (
 	"errors"
 	"go-ecommerce/internal/domain"
 	"go-ecommerce/internal/dto"
+	"go-ecommerce/internal/helper"
 	"go-ecommerce/internal/repository"
 )
 
 type UserService struct {
 	Repo repository.UserRepository
+	Auth helper.Auth
 }
 
 func (s UserService) Signup(input dto.UserSignup) (string, error) {
-	_, err := s.Repo.CreateUser(domain.User{
+	hashedPassword, err := s.Auth.CreateHashedPassword(input.Password);
+	if err != nil {
+		return "", err
+	}
+
+	user, err := s.Repo.CreateUser(domain.User{
 		Email: input.Email,
-		Password: input.Password,
+		Password: hashedPassword,
 		Phone: input.Phone,
 	})
 
-	return "user created", err
+	if err != nil {
+		return "", errors.New("unable to create user");
+	}
+
+	return s.Auth.GenerateToken(user.ID, user.Email, user.UserType)
 }
 
 func (s UserService) FindUserByEmail(email string) (*domain.User, error) {
@@ -33,7 +44,12 @@ func (s UserService) Login(email string, password string) (string, error) {
 		return "", errors.New("user with given email and password does not exist")
 	}
 
-	return user.Email, nil
+	err = s.Auth.VerifyPassword(password, user.Password);
+	if err != nil {
+		return "", err
+	}
+
+	return s.Auth.GenerateToken(user.ID, user.Email, user.UserType)
 }
 
 func (s UserService) GetVerificationCode(e domain.User) (int, error) {

@@ -5,6 +5,7 @@ import (
 	"go-ecommerce/internal/api/rest"
 	"go-ecommerce/internal/api/rest/handlers"
 	"go-ecommerce/internal/domain"
+	"go-ecommerce/internal/helper"
 	"log"
 
 	"github.com/gofiber/fiber/v2"
@@ -15,9 +16,11 @@ import (
 func StartServer(config config.AppConfig) {
 	app := fiber.New();
 	db, err := gorm.Open(postgres.Open(config.Dsn), &gorm.Config{});
+	auth := helper.SetupAuth(config.AppSecret);
 	rh := &rest.RestHandler{
 		App: app,
 		DB: db,
+		Auth: auth,
 	}
 
 	if err != nil {
@@ -27,7 +30,6 @@ func StartServer(config config.AppConfig) {
 	log.Println("Database connected");
 
 	db.AutoMigrate(&domain.User{})
-
 	setupRoutes(rh);
 	app.Listen(config.ServerPort);
 }

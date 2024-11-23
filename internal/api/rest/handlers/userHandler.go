@@ -18,27 +18,31 @@ func SetupUserRoute(rh *rest.RestHandler) {
 	app := rh.App;
 	svc := service.UserService{
 		Repo: repository.NewUserRepository(rh.DB),
+		Auth: rh.Auth,
 	}
 	handler := UserHandler{
 		svc: svc,
 	}
 
+	publicRoutes := app.Group("/users");
+	privateRoutes := app.Group("/users/private", rh.Auth.Authorize);
+
 	// public endpoints
-	app.Post("/register", handler.Register);
-	app.Post("/login", handler.Login);
+	publicRoutes.Post("/register", handler.Register);
+	publicRoutes.Post("/login", handler.Login);
 
 	// private endpoints
-	app.Get("/verify", handler.GetVerificationCode);
-	app.Post("/verify", handler.Verify);
-	app.Post("/profile", handler.CreateProfile);
-	app.Get("/profile", handler.GetProfile);
+	privateRoutes.Get("/verify", handler.GetVerificationCode);
+	privateRoutes.Post("/verify", handler.Verify);
+	privateRoutes.Post("/profile", handler.CreateProfile);
+	privateRoutes.Get("/profile", handler.GetProfile);
 
-	app.Post("/cart", handler.AddToCart);
-	app.Get("/cart", handler.GetCart);
-	app.Get("/order", handler.GetOrders);
-	app.Get("/order/:id", handler.GetOrder);
+	privateRoutes.Post("/cart", handler.AddToCart);
+	privateRoutes.Get("/cart", handler.GetCart);
+	privateRoutes.Get("/order", handler.GetOrders);
+	privateRoutes.Get("/order/:id", handler.GetOrder);
 
-	app.Post("/become-seller", handler.BecomeSeller);
+	privateRoutes.Post("/become-seller", handler.BecomeSeller);
 }
 
 func (h *UserHandler) Register(ctx *fiber.Ctx) error {
@@ -60,7 +64,8 @@ func (h *UserHandler) Register(ctx *fiber.Ctx) error {
 	}
 
 	return ctx.Status(http.StatusOK).JSON(&fiber.Map{
-		"message": token,
+		"message": "register",
+		"token": token,
 	})
 }
 
@@ -109,8 +114,10 @@ func (h *UserHandler) CreateProfile(ctx *fiber.Ctx) error {
 }
 
 func (h *UserHandler) GetProfile(ctx *fiber.Ctx) error {
+	user := h.svc.Auth.GetCurrentUser(ctx);
 	return ctx.Status(http.StatusOK).JSON(&fiber.Map{
 		"message": "get profile",
+		"user": user,
 	})
 }
 
